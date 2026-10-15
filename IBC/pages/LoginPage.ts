@@ -1,4 +1,4 @@
-import { Page, BrowserContext } from '@playwright/test';
+import { Page, BrowserContext, errors } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
 import { LoginLocators } from '../locators/customerLocators';
@@ -15,7 +15,15 @@ export class LoginPage {
       try {
         await this.page.waitForURL(url => url.hostname.endsWith('.b2clogin.com'), { timeout: 10000 });
         needsLogin = true;
-      } catch {
+      } catch (error) {
+        if (!(error instanceof errors.TimeoutError)) {
+          throw error;
+        }
+        const appOrigin = new URL(process.env.BASE_URL ?? 'https://qa.pactrak.com').origin;
+        if (new URL(this.page.url()).origin !== appOrigin) {
+          throw error;
+        }
+        console.info('No login redirect detected; continuing on the configured app origin.');
         return;
       }
     }
@@ -44,8 +52,8 @@ export class LoginPage {
       await sendCodeButton.waitFor({ state: 'visible', timeout: 15000 });
       await sendCodeButton.click();
 
-      // Waits up to 2 minutes for user to complete verification in the browser.
-      await this.page.waitForURL(url => new URL(url).origin === appOrigin, { timeout: 120000 });
+      // Verification is completed manually in the browser.
+      await this.page.waitForURL(url => url.origin === appOrigin, { timeout: 120000 });
       await this.page.goto(returnUrl);
       await this.page.waitForLoadState('networkidle');
 

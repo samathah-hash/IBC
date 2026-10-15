@@ -115,19 +115,22 @@ const children = [
     spacing: { after: 80 },
   }),
   new Paragraph({
-    children: [new TextRun({ text: 'Aviro Playwright Test Suite — Developer Reference', size: 24, color: '595959' })],
+    children: [new TextRun({ text: 'IBC Playwright Test Suite — Developer Reference', size: 24, color: '595959' })],
     alignment: AlignmentType.CENTER,
     spacing: { after: 400 },
   }),
 
   // ── Root ──
   heading1('Root Directory'),
-  body('The root of the workspace contains the project manifest and the global Playwright configuration. All source code, test files, and runtime artefacts live in sub-directories.'),
+  body('The root of the IBC Playwright project contains the Node.js manifest, lockfile, Playwright configuration, and project-structure documentation. Test specifications and runtime artefacts live in sub-directories.'),
   new Paragraph({ spacing: { after: 120 } }),
   table([
     ['File', 'Purpose'],
-    ['package.json', 'Node.js project manifest. Declares the @playwright/test dev dependency and project metadata.'],
-    ['playwright.config.ts', 'Global Playwright configuration. Sets the test directory, global timeout (5 minutes), the target browser (Microsoft Edge), screenshot capture behaviour, and conditionally loads a saved authentication state when one exists.'],
+    ['package.json', 'Node.js project manifest. Declares @playwright/test and docx as development dependencies.'],
+    ['package-lock.json', 'Locks the exact dependency versions installed for this project.'],
+    ['playwright.config.ts', 'Playwright configuration. Sets the test directory, global timeout (5 minutes), Microsoft Edge, screenshot capture, the Pactrak QA base URL, and loads saved authentication state only when it matches the configured app origin.'],
+    ['PROJECT_STRUCTURE.md / PROJECT_STRUCTURE.docx', 'Project-structure references in Markdown and Word formats.'],
+    ['_generate-doc.js', 'Generates PROJECT_STRUCTURE.docx from the document content defined in this script.'],
   ]),
 
   // ── locators/ ──
@@ -137,49 +140,38 @@ const children = [
   table([
     ['File', 'Contents'],
     ['bookingLocators.ts', 'Selectors and values for the Bookings page: the page URL, button names, combobox labels, radio button labels, CSS selectors for option lists and day-rate inputs, success message patterns, and the booking ID regex.'],
-    ['customerLocators.ts', 'Selectors for both the Login and Customers pages: email/password field placeholders, the Customers page URL, invite-customer button name, drawer and popover CSS selectors, submit button selector, and the invite-confirmation message pattern.'],
+    ['customerLocators.ts', 'Selectors for the B2C login form and Customers page, including login field/button names, the Customers page URL, invite-customer button, drawer and popover selectors, and invite-confirmation message pattern.'],
   ]),
 
   // ── pages/ ──
   heading1('pages/'),
-  body('Implements the Page Object Model (POM) pattern. Each class wraps a specific application page, exposing high-level action and assertion methods that tests call. Tests never interact with Playwright\'s page API directly — they go through these classes.'),
+  body('Contains shared page-object workflows used by the functional tests.'),
   new Paragraph({ spacing: { after: 120 } }),
   table([
     ['File', 'Responsibility'],
-    ['LoginPage.ts', 'Handles authentication. The loginIfNeeded() method checks whether the login form is visible, fills in credentials, waits for OTP completion (up to 2 minutes), and then persists the authenticated browser storage state to playwright/.auth/user.json so subsequent test runs can skip the login step.'],
-    ['BookingsPage.ts', 'Covers the full booking lifecycle: navigating to the Bookings page, asserting it has loaded, driving the multi-step Create Booking wizard, extracting the generated booking ID from the success message, dismissing the toast, searching for the booking, and asserting its details.'],
-    ['CustomerPage.ts', 'Covers customer operations: navigating to the Customers page, inviting a new customer through the drawer form, extracting the invited customer\'s name from the confirmation toast, dismissing the toast, searching for the customer, and asserting they appear in the list.'],
+    ['LoginPage.ts', 'Handles B2C authentication using LOGIN_USERNAME and LOGIN_PASSWORD, waits up to 2 minutes for manual verification, and saves browser storage state to playwright/.auth/user.json. Skips login when no authentication redirect occurs and the browser remains on the configured app origin.'],
   ]),
 
   // ── tests/ ──
   heading1('tests/'),
-  body('Contains all test specifications, organised by test type. Each .spec.ts file imports page classes, composes them into a test scenario, and makes assertions. Test files contain no raw selectors — those live in locators/.'),
+  body('Contains the current Playwright test specifications.'),
 
   heading2('tests/functional/'),
   body('Isolated tests that verify a single feature in the application. Each test runs independently and focuses on one user journey.'),
   new Paragraph({ spacing: { after: 120 } }),
   table([
     ['File', 'What it tests'],
-    ['userlogin.spec.ts', 'Verifies that a user can authenticate successfully and land on the Bookings page.'],
-    ['invitecustomer.spec.ts', 'Verifies that inviting a new customer completes successfully and the customer appears in the customer list.'],
-    ['createbooking.spec.ts', 'Verifies that the full Create Booking wizard can be completed and the resulting booking can be found and inspected.'],
-  ]),
-
-  heading2('tests/integration/'),
-  body('End-to-end tests that chain multiple features together into a single continuous flow, simulating realistic user journeys across the application.'),
-  new Paragraph({ spacing: { after: 120 } }),
-  table([
-    ['File', 'What it tests'],
-    ['customer-location-booking.spec.ts', 'Full flow: logs in, invites a new customer, verifies the customer was created, then creates a booking for that customer and verifies the booking details.'],
+    ['advancedsearch.spec.ts', 'Logs in, opens the dashboard, and clicks the Advanced Search control.'],
+    ['userlogin.spec.ts', 'Verifies that a user can authenticate successfully and return to the configured app origin.'],
   ]),
 
   // ── playwright/ ──
   heading1('playwright/'),
-  body('Runtime artefacts managed by Playwright itself.'),
+  body('Runtime authentication state managed by Playwright. The configuration reuses it only when its origin matches the configured app origin.'),
   new Paragraph({ spacing: { after: 120 } }),
   table([
     ['Path', 'Purpose'],
-    ['playwright/.auth/user.json', 'Saved browser storage state (cookies, local storage, session tokens) captured after a successful login. When this file exists, playwright.config.ts injects it via storageState so tests start already authenticated, avoiding repeated logins. This file is generated at runtime and should not be committed to source control.'],
+    ['playwright/.auth/user.json', 'Saved browser storage state captured after login. This file is generated at runtime, may contain sensitive session data, and should not be committed to source control.'],
   ]),
 
   // ── test-results/ ──
@@ -187,22 +179,21 @@ const children = [
   body('Auto-generated by Playwright after each test run. Contains one sub-folder per test, named after the test title. Each folder may contain:'),
   bullet('Screenshots captured at each step (enabled globally in playwright.config.ts).'),
   bullet('error-context.md — written when a test fails; summarises the error and the step that caused it, useful for diagnosing CI failures without re-running tests locally.'),
-  body('This directory is generated output and should be excluded from source control (add to .gitignore).'),
+  body('This directory is generated output and should be excluded from source control.'),
 
   // ── Architecture ──
   heading1('Architecture Summary'),
-  body('The locators → pages → tests layering keeps each concern separate:'),
+  body('The current layout keeps selectors, test scenarios, configuration, and generated runtime data in separate locations:'),
   new Paragraph({ spacing: { after: 60 } }),
   codeBlock('playwright.config.ts       ← Playwright configuration'),
   codeBlock('locators/                  ← Selectors and static test data (single source of truth)'),
-  codeBlock('pages/                     ← Page Object Model classes (actions + assertions)'),
+  codeBlock('pages/                     ← Shared page-object workflows (LoginPage)'),
   codeBlock('tests/'),
-  codeBlock('  functional/              ← Single-feature tests'),
-  codeBlock('  integration/             ← Multi-feature end-to-end flows'),
+  codeBlock('  functional/              ← Current feature-level test specifications'),
   codeBlock('playwright/.auth/          ← Runtime: persisted auth state (gitignore this)'),
   codeBlock('test-results/              ← Runtime: screenshots and failure reports (gitignore this)'),
   new Paragraph({ spacing: { after: 120 } }),
-  body('Changing a selector only touches locators/, changing a workflow only touches pages/, and adding a new scenario only touches tests/.'),
+  body('The current functional tests are advancedsearch.spec.ts and userlogin.spec.ts. Both use pages/LoginPage.ts for authentication. The locators directory contains booking and customer selector modules.'),
 ];
 
 // ── Build and write ───────────────────────────────────────────────────────────
